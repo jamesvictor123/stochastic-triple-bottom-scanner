@@ -18,12 +18,14 @@ def get_symbols():
     try:
         res = requests.get(url, timeout=10)
         data = res.json()
+        st.subheader("📦 Binance API 응답")
+        st.json(data)
         if 'symbols' not in data:
-            st.error("Binance API에서 'symbols' 키를 찾을 수 없습니다.")
+            st.error("❗ 'symbols' 키가 없음 — 응답 이상하거나 구조 변경됨.")
             return []
         return [s['symbol'] for s in data['symbols'] if s['quoteAsset'] == 'USDT' and s['status'] == 'TRADING']
     except Exception as e:
-        st.error(f"심볼 목록을 가져오는 중 오류 발생: {e}")
+        st.error(f"요청 실패: {e}")
         return []
 
 @st.cache_data(show_spinner=False)
