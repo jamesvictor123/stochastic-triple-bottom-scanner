@@ -1,5 +1,6 @@
 import pandas as pd
 import requests
+import streamlit as st
 from ta.momentum import StochasticOscillator
 
 # 파라미터
@@ -9,10 +10,10 @@ K_PERIOD = 20
 K_SMOOTH = 10
 D_SMOOTH = 10
 
-# 전체 USDT 마켓 심볼 (Binance 기준, 2025년 3월 기준 1000+ 종목 일부 예시)
+# 종목 리스트
 def get_symbols():
-    return [
-        "1000BONKUSDT", "1000FLOKIUSDT", "1000PEPEUSDT", "1000SHIBUSDT", "1INCHUSDT", "AAVEUSDT", "ACHUSDT", "ADAUSDT", "AGIXUSDT", "ALGOUSDT",
+    return [  # 여기 네가 넣은 전체 USDT 심볼 리스트 (생략)
+       "1000BONKUSDT", "1000FLOKIUSDT", "1000PEPEUSDT", "1000SHIBUSDT", "1INCHUSDT", "AAVEUSDT", "ACHUSDT", "ADAUSDT", "AGIXUSDT", "ALGOUSDT",
         "ALICEUSDT", "ALPHAUSDT", "AMPUSDT", "ANKRUSDT", "ANTUSDT", "APEUSDT", "API3USDT", "APTUSDT", "ARBUSDT", "ARKMUSDT",
         "ARPAUSDT", "ARUSDT", "ASTRUSDT", "ATAUSDT", "ATOMUSDT", "AUDIOUSDT", "AVAXUSDT", "AXSUSDT", "BADGERUSDT", "BAKEUSDT",
         "BALUSDT", "BANDUSDT", "BATUSDT", "BCHUSDT", "BELUSDT", "BLZUSDT", "BNBUSDT", "BNTUSDT", "BONDUSDT", "BSWUSDT",
@@ -37,21 +38,23 @@ def get_symbols():
         "XVSUSDT", "YFIUSDT", "YGGUSDT", "ZECUSDT", "ZENUSDT", "ZILUSDT", "ZRXUSDT"
     ]
 
-# 캔들 데이터 불러오기
+# 캔들 데이터
 def get_klines(symbol, interval="1h", limit=100):
     url = "https://api.binance.com/api/v3/klines"
     params = {"symbol": symbol, "interval": interval, "limit": limit}
     res = requests.get(url, params=params)
     data = res.json()
-    df = pd.DataFrame(data, columns=["timestamp", "open", "high", "low", "close", "volume",
-                                     "close_time", "quote_asset_volume", "number_of_trades",
-                                     "taker_buy_base_vol", "taker_buy_quote_vol", "ignore"])
+    df = pd.DataFrame(data, columns=[
+        "timestamp", "open", "high", "low", "close", "volume",
+        "close_time", "quote_asset_volume", "number_of_trades",
+        "taker_buy_base_vol", "taker_buy_quote_vol", "ignore"
+    ])
     df["close"] = df["close"].astype(float)
     df["low"] = df["low"].astype(float)
     df["high"] = df["high"].astype(float)
     return df
 
-# 쓰리바닥 패턴 감지
+# 쓰리바닥 패턴
 def detect_triple_bottom(df):
     try:
         stoch = StochasticOscillator(high=df['high'], low=df['low'], close=df['close'],
@@ -76,19 +79,23 @@ def detect_triple_bottom(df):
     except:
         return False
 
-# 실행
-def main():
-    symbols = get_symbols()
-    results = []
-    for symbol in symbols:
-        try:
-            df = get_klines(symbol, interval=TIMEFRAME, limit=LIMIT)
-            if detect_triple_bottom(df):
-                results.append(symbol)
-        except:
-            continue
+# Streamlit 화면 출력
+st.title("📉 Stochastic 쓰리바닥 패턴 탐지기")
+st.caption("Binance USDT 마켓 1시간봉 기준, 스토캐스틱(20,10,10) 조건")
 
-    print("✅ 쓰리바닥 패턴 포착된 종목 수:", len(results))
-    print("🎯 종목 리스트:", results)
+symbols = get_symbols()
+results = []
 
-main()
+progress = st.progress(0)
+for idx, symbol in enumerate(symbols):
+    try:
+        df = get_klines(symbol, interval=TIMEFRAME, limit=LIMIT)
+        if detect_triple_bottom(df):
+            results.append(symbol)
+    except:
+        continue
+    progress.progress((idx + 1) / len(symbols))
+
+st.success(f"✅ 쓰리바닥 패턴 포착 종목 수: {len(results)}개")
+st.write("🎯 포착 종목 리스트:")
+st.write(results)
