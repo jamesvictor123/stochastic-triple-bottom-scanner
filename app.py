@@ -6,22 +6,26 @@ from ta.momentum import StochasticOscillator
 st.set_page_config(page_title="Stochastic 쓰리바닥 스캐너", layout="wide")
 st.title("📉 Stochastic 쓰리바닥 패턴 탐지기 (1시간봉 기준)")
 
-# 파라미터 설정
 TIMEFRAME = "1h"
 LIMIT = 100
 K_PERIOD = 20
 K_SMOOTH = 10
 D_SMOOTH = 10
 
-# 모든 USDT 마켓 심볼 가져오기
 @st.cache_data(show_spinner=False)
 def get_symbols():
     url = "https://api.binance.com/api/v3/exchangeInfo"
-    data = requests.get(url).json()
-    symbols = [s['symbol'] for s in data['symbols'] if s['quoteAsset'] == 'USDT' and s['status'] == 'TRADING']
-    return symbols
+    try:
+        res = requests.get(url, timeout=10)
+        data = res.json()
+        if 'symbols' not in data:
+            st.error("Binance API에서 'symbols' 키를 찾을 수 없습니다.")
+            return []
+        return [s['symbol'] for s in data['symbols'] if s['quoteAsset'] == 'USDT' and s['status'] == 'TRADING']
+    except Exception as e:
+        st.error(f"심볼 목록을 가져오는 중 오류 발생: {e}")
+        return []
 
-# 심볼별 캔들 데이터 가져오기
 @st.cache_data(show_spinner=False)
 def get_klines(symbol, interval="1h", limit=100):
     url = "https://api.binance.com/api/v3/klines"
@@ -34,7 +38,6 @@ def get_klines(symbol, interval="1h", limit=100):
     df["high"] = df["high"].astype(float)
     return df
 
-# 쓰리바닥 패턴 감지
 def detect_triple_bottom(df):
     try:
         stoch = StochasticOscillator(high=df['high'], low=df['low'], close=df['close'], window=K_PERIOD, smooth_window=K_SMOOTH)
@@ -58,7 +61,6 @@ def detect_triple_bottom(df):
     except:
         return False
 
-# 앱 실행
 st.info("USDT 마켓 전체 코인에서 1시간봉 기준 쓰리바닥 패턴을 탐색 중입니다.")
 
 symbols = get_symbols()
